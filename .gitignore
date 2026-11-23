@@ -11,6 +11,7 @@ settings.json
 usage.csv
 log.txt
 log.old.txt
+update-check.txt
 
 # IDE / OS
 .vs/
