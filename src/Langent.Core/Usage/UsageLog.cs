@@ -49,6 +49,9 @@ public sealed class UsageLog
 
     public IReadOnlyList<UsageEntry> Entries => _entries;
 
+    /// <summary>Raised after an entry is appended (lets the tray refresh without polling).</summary>
+    public event Action? Changed;
+
     public void Append(UsageEntry entry)
     {
         if (!_fileSystem.FileExists(_path))
@@ -58,6 +61,7 @@ public sealed class UsageLog
 
         _fileSystem.AppendAllText(_path, Format(entry) + NewLine);
         _entries.Add(entry);
+        Changed?.Invoke();
     }
 
     /// <summary>Totals for the local calendar day of <paramref name="localDay"/>.</summary>

@@ -64,6 +64,19 @@ public sealed class UsageLogTests
     }
 
     [Fact]
+    public void Append_raises_changed()
+    {
+        var fs = new InMemoryFileSystem();
+        var log = new UsageLog(fs, Path);
+        var raised = 0;
+        log.Changed += () => raised++;
+
+        log.Append(Entry(new DateTime(2026, 4, 15, 12, 0, 0, DateTimeKind.Utc)));
+
+        Assert.Equal(1, raised);
+    }
+
+    [Fact]
     public void Malformed_lines_are_skipped()
     {
         var fs = new InMemoryFileSystem();

@@ -18,8 +18,8 @@ namespace Langent.Core.Trigger;
 /// </remarks>
 public sealed class DoubleCopyDetector
 {
-    private readonly int _windowMs;
-    private readonly int _burstMergeMs;
+    private int _windowMs;
+    private int _burstMergeMs;
 
     private long? _lastUpdateTs;
     private long? _pendingOpStartTs;
@@ -35,6 +35,13 @@ public sealed class DoubleCopyDetector
 
     /// <summary>When false (e.g. paused via the tray), updates never trigger.</summary>
     public bool Enabled { get; set; }
+
+    /// <summary>Updates the timing thresholds (e.g. after the settings change).</summary>
+    public void Configure(int windowMs, int burstMergeMs)
+    {
+        _windowMs = windowMs;
+        _burstMergeMs = burstMergeMs;
+    }
 
     /// <summary>
     /// Ignore every update whose timestamp is before <paramref name="untilTsMs"/>.
