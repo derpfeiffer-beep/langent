@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
@@ -28,6 +30,10 @@ public partial class App : Application
     private UsageLog? _usageLog;
     private AppSettings? _settings;
     private ApiKeyResolver? _apiKeyResolver;
+    private IFileSystem? _fileSystem;
+    private string? _updateCheckPath;
+    private ContextMenu? _trayMenu;
+    private UpdateChecker? _updateChecker;
 
     private string _budgetMonth = "";
     private bool _budget80Notified;
@@ -69,11 +75,72 @@ public partial class App : Application
             _log.Info("Erster Start ohne API-Schlüssel: Einstellungen werden geöffnet.");
             _controller.OpenSettings(keyMissingHint: true);
         }
+
+        _ = _updateChecker!.CheckAsync(CancellationToken.None);
     }
+
+    private DateTime? ReadLastUpdateCheck()
+    {
+        if (_fileSystem is null || _updateCheckPath is null || !_fileSystem.FileExists(_updateCheckPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var text = _fileSystem.ReadAllText(_updateCheckPath).Trim();
+            return DateTime.TryParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+                ? date
+                : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private void WriteLastUpdateCheck(DateTime when)
+    {
+        if (_fileSystem is null || _updateCheckPath is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _fileSystem.WriteAllText(_updateCheckPath, when.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        }
+        catch (Exception)
+        {
+            // Best-effort throttle marker.
+        }
+    }
+
+    private void OnUpdateAvailable(string tag, string url) => Dispatcher.Invoke(() =>
+    {
+        if (_trayMenu is not null)
+        {
+            var item = new MenuItem { Header = $"Update {tag} öffnen …" };
+            item.Click += (_, _) =>
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    _log?.Error("Release-Seite konnte nicht geöffnet werden", ex);
+                }
+            };
+            _trayMenu.Items.Insert(0, item);
+        }
+
+        Notify($"Neue Version {tag} verfügbar.");
+    });
 
     private AppController BuildController(Logging log)
     {
-        var exeDirectory = AppContext.BaseDirectory;
+        var exeDirectory = AppPaths.GetExeDirectory();
         var appDataDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             AppPaths.AppDataFolderName);
@@ -93,6 +160,12 @@ public partial class App : Application
         var provider = new ClaudeTranslationProvider(_httpClient, _apiKeyResolver.Resolve);
         var connectionTester = new ConnectionTester(_httpClient);
         var exePath = Environment.ProcessPath ?? string.Empty;
+
+        _fileSystem = fileSystem;
+        _updateCheckPath = resolver.ResolvePath(exeDirectory, appDataDirectory, "update-check.txt");
+        var currentVersion = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
+        _updateChecker = new UpdateChecker(
+            _httpClient, log, currentVersion, ReadLastUpdateCheck, WriteLastUpdateCheck, OnUpdateAvailable);
 
         return new AppController(
             log, _settings, settingsStore, provider, _usageLog, connectionTester,
@@ -120,6 +193,8 @@ public partial class App : Application
         var exitItem = new MenuItem { Header = "Beenden" };
         exitItem.Click += (_, _) => Shutdown();
         menu.Items.Add(exitItem);
+
+        _trayMenu = menu;
 
         var icon = new TaskbarIcon
         {
