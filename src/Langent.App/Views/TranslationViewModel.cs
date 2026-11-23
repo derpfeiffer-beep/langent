@@ -161,6 +161,9 @@ public sealed partial class TranslationViewModel : ObservableObject
 
     public Action? CloseWindow { get; set; }
 
+    /// <summary>Set by the controller: open the settings window (MissingKey action).</summary>
+    public Action? OpenSettingsRequested { get; set; }
+
     /// <summary>Called by the window after it is shown to begin the flow.</summary>
     public void Begin()
     {
@@ -248,8 +251,14 @@ public sealed partial class TranslationViewModel : ObservableObject
     [RelayCommand]
     private void OpenSettings()
     {
-        // Settings window arrives in M5; for now just record the request.
-        _log.Info("Einstellungen angefordert (folgt in M5).");
+        if (OpenSettingsRequested is not null)
+        {
+            OpenSettingsRequested.Invoke();
+        }
+        else
+        {
+            _log.Info("Einstellungen angefordert.");
+        }
     }
 
     [RelayCommand]
