@@ -22,13 +22,30 @@ public sealed class AppPaths
 
     public static AppPaths Resolve()
     {
-        var exeDirectory = AppContext.BaseDirectory;
         var appDataDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             AppDataFolderName);
 
         var resolver = new FilePathResolver(new FileSystemDirectoryProbe());
-        var baseDirectory = resolver.ResolveBaseDirectory(exeDirectory, appDataDirectory);
+        var baseDirectory = resolver.ResolveBaseDirectory(GetExeDirectory(), appDataDirectory);
         return new AppPaths(baseDirectory);
+    }
+
+    /// <summary>
+    /// The directory holding the running exe. For a single-file self-extracting build
+    /// <see cref="AppContext.BaseDirectory"/> is the temp extraction folder, so when the
+    /// process is our own exe we use <see cref="Environment.ProcessPath"/> instead; in a
+    /// dev run via <c>dotnet App.dll</c> we fall back to the build output directory.
+    /// </summary>
+    public static string GetExeDirectory()
+    {
+        var processPath = Environment.ProcessPath;
+        if (processPath is not null
+            && string.Equals(Path.GetFileNameWithoutExtension(processPath), "Langent", StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.GetDirectoryName(processPath) ?? AppContext.BaseDirectory;
+        }
+
+        return AppContext.BaseDirectory;
     }
 }
