@@ -17,7 +17,7 @@ public sealed class TriggerSettings
 /// <summary>Remembered window size (SPEC §6 "window").</summary>
 public sealed class WindowSettings
 {
-    public int Width { get; set; } = 560;
+    public int Width { get; set; } = 760;
     public int Height { get; set; } = 420;
 }
 
