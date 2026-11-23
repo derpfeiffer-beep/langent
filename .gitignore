@@ -1,0 +1,19 @@
+# Build output
+bin/
+obj/
+publish/
+
+# Local .NET SDK (installed to user profile for this machine)
+.dotnet/
+
+# Runtime files that must never be committed (see CLAUDE.md > Sicherheit)
+settings.json
+usage.csv
+log.txt
+log.old.txt
+
+# IDE / OS
+.vs/
+*.user
+.idea/
+Thumbs.db
