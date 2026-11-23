@@ -7,6 +7,8 @@
     <RootNamespace>Langent.App</RootNamespace>
     <AssemblyName>Langent</AssemblyName>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Classic DllImport is used in NativeMethods.cs; silence the LibraryImport suggestion. -->
+    <NoWarn>$(NoWarn);SYSLIB1054</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

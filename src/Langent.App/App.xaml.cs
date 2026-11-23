@@ -14,6 +14,7 @@ public partial class App : Application
     private TaskbarIcon? _trayIcon;
     private Logging? _log;
     private SingleInstanceSignalServer? _signalServer;
+    private AppController? _controller;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -37,6 +38,9 @@ public partial class App : Application
         _signalServer.Start();
 
         _trayIcon = CreateTrayIcon();
+
+        _controller = new AppController(_log);
+        _controller.Start();
     }
 
     private TaskbarIcon CreateTrayIcon()
@@ -87,6 +91,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _controller?.Dispose();
         _trayIcon?.Dispose();
         _signalServer?.Dispose();
 
