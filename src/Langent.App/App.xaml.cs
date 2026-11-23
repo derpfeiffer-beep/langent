@@ -1,3 +1,5 @@
+using System.IO;
+using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
@@ -5,6 +7,10 @@ using System.Windows.Threading;
 using H.NotifyIcon;
 using Langent.App.Infrastructure;
 using Langent.App.Services;
+using Langent.Core.Infrastructure;
+using Langent.Core.Settings;
+using Langent.Core.Translation;
+using Langent.Core.Usage;
 
 namespace Langent.App;
 
@@ -15,6 +21,7 @@ public partial class App : Application
     private Logging? _log;
     private SingleInstanceSignalServer? _signalServer;
     private AppController? _controller;
+    private HttpClient? _httpClient;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -39,8 +46,32 @@ public partial class App : Application
 
         _trayIcon = CreateTrayIcon();
 
-        _controller = new AppController(_log);
+        _controller = BuildController(_log);
         _controller.Start();
+    }
+
+    private AppController BuildController(Logging log)
+    {
+        var exeDirectory = AppContext.BaseDirectory;
+        var appDataDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            AppPaths.AppDataFolderName);
+
+        var fileSystem = new FileSystem();
+        var resolver = new FilePathResolver(new FileSystemDirectoryProbe());
+
+        var settingsStore = new SettingsStore(fileSystem, resolver, exeDirectory, appDataDirectory);
+        var settings = settingsStore.Load();
+
+        var usagePath = resolver.ResolvePath(exeDirectory, appDataDirectory, UsageLog.FileName);
+        var usageLog = new UsageLog(fileSystem, usagePath);
+
+        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        var apiKeyResolver = new ApiKeyResolver(() => settings);
+        var provider = new ClaudeTranslationProvider(_httpClient, apiKeyResolver.Resolve);
+
+        return new AppController(
+            log, settings, provider, usageLog, () => settingsStore.Save(settings), Dispatcher);
     }
 
     private TaskbarIcon CreateTrayIcon()
@@ -92,6 +123,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _controller?.Dispose();
+        _httpClient?.Dispose();
         _trayIcon?.Dispose();
         _signalServer?.Dispose();
 
